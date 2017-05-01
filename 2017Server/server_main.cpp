@@ -259,121 +259,258 @@ void ProcessPacket(const int& client_index, unsigned char *packet)
 	}
 
 
+	#pragma region[MyCode]
+	
+		std::unordered_set<int> new_view_list;
 
-	std::unordered_set<int> new_view_list;
-
-	for (int i = 0; i < MAX_USER; ++i)
-	{
-		if (i == client_index)continue;
+		for (int i = 0; i < MAX_USER; ++i)
+		{
+			if (i == client_index)continue;
 		
-		if (gclients[i].bConnected & (IsNear(client_index, i)) )
-		{
-			new_view_list.insert(i);
+			if (gclients[i].bConnected)
+			{
+				new_view_list.insert(i);
+			}
 		}
 
-	}
-	for (auto& id : new_view_list)
-	{
 
-		//gclients[client_index].vl_lock.lock();									-- 1차 lock
-		gclients[client_index].vl_lock.lock();										//-- 2차 lock
-
-		//보이지 않다가 보이게 된 객체 처리  : 시야 리스트에 존재하지 않았떤 존재
-		if (0 == gclients[client_index].view_list.count(id))
+		for (auto& id : new_view_list)
 		{
-			gclients[client_index].view_list.insert(id);
-			gclients[client_index].vl_lock.unlock();								//--2차 unlock
-
-			SendPlayerPacket(client_index, id);
-
-
-			gclients[id].vl_lock.lock();										//-- 2차 lock
-			if (0 == gclients[id].view_list.count(client_index))
+			if (IsNear(client_index, id))
 			{
-				gclients[id].view_list.insert(client_index);
-				gclients[id].vl_lock.unlock();								//--2차 unlock
 
+				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+				{
+					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+					{
+						gclients[id].view_list.insert(client_index);
+					}
+				}
+
+				else											//이전에 보이지 않음
+				{
+					gclients[client_index].view_list.insert(id);
+
+					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+					{
+						gclients[id].view_list.insert(client_index);
+					}
+
+				}
 				SendPlayerPacket(id, client_index);
+				SendPlayerPacket(client_index, id);
+
 			}
 			else
 			{
+				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+				{
+					gclients[client_index].view_list.erase(id);
+					SendRemovePlayerPacket(client_index, id);
+				}
+
+				if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+				{
+					gclients[id].view_list.erase(client_index);
+					SendRemovePlayerPacket(id, client_index);
+				}
+			}
+		}
+	#pragma endregion
+
+
+	//KYT '17.04.22 
+	//정내훈 교수님 코드
+	/*
+		std::unordered_set<int> new_view_list;
+
+		for (int i = 0; i < MAX_USER; ++i)
+		{
+			if (i == client_index)continue;
+		
+			if (gclients[i].bConnected & (IsNear(client_index, i)) )
+			{
+				new_view_list.insert(i);
+			}
+
+		}
+		for (auto& id : new_view_list)
+		{
+
+			//gclients[client_index].vl_lock.lock();									-- 1차 lock
+			gclients[client_index].vl_lock.lock();										//-- 2차 lock
+
+			//보이지 않다가 보이게 된 객체 처리  : 시야 리스트에 존재하지 않았떤 존재
+			if (0 == gclients[client_index].view_list.count(id))
+			{
+				gclients[client_index].view_list.insert(id);
+				gclients[client_index].vl_lock.unlock();								//--2차 unlock
+
+				SendPlayerPacket(client_index, id);
+
+
+				gclients[id].vl_lock.lock();										//-- 2차 lock
+				if (0 == gclients[id].view_list.count(client_index))
+				{
+					gclients[id].view_list.insert(client_index);
+					gclients[id].vl_lock.unlock();								//--2차 unlock
+
+					SendPlayerPacket(id, client_index);
+				}
+				else
+				{
+					gclients[client_index].vl_lock.unlock();					
+					SendPlayerPacket(id, client_index);
+				}
+
+
+			}	
+			//계속 보이고 있떤 객체 처리
+			else
+			{
+				gclients[client_index].vl_lock.unlock();						
+				gclients[id].vl_lock.lock();									
+				if (0 == gclients[id].view_list.count(client_index))
+				{
+					gclients[id].view_list.insert(client_index);
+					gclients[id].vl_lock.unlock();								
+
+					SendPlayerPacket(id, client_index);
+				}
+				else
+				{
+					gclients[id].vl_lock.unlock();									
+					SendPlayerPacket(id, client_index);
+				}
+			}
+			//gclients[client_index].vl_lock.unlock();								
+		}
+
+		gclients[client_index].vl_lock.lock();										
+		std::unordered_set<int> localviewlist = gclients[client_index].view_list;
+		gclients[client_index].vl_lock.unlock();									
+
+		//보이다가 보이지 않게 되는 객체 처리 : 시야리스트에서 제거해야 되는 존재
+		for (auto& id : localviewlist)
+		{
+			gclients[client_index].vl_lock.lock();							
+			if (0 != gclients[client_index].view_list.count(id))
+			{
+				gclients[client_index].view_list.erase(id);
 				gclients[client_index].vl_lock.unlock();					
-				SendPlayerPacket(id, client_index);
-			}
 
+				SendRemovePlayerPacket(client_index, id);
 
-		}	
-		//계속 보이고 있떤 객체 처리
-		else
-		{
-			gclients[client_index].vl_lock.unlock();						
-			gclients[id].vl_lock.lock();									
-			if (0 == gclients[id].view_list.count(client_index))
-			{
-				gclients[id].view_list.insert(client_index);
-				gclients[id].vl_lock.unlock();								
+				//이미 지워져 있으면 지울 필요가 없다.
+				gclients[id].vl_lock.lock();		// Loop를 돌때마다 lock을 거릭 때문에 noblocking 자료구조가 아니면 힘들다.		
+				if (0 == gclients[id].view_list.count(client_index))
+				{
+					gclients[id].vl_lock.unlock();							
 
-				SendPlayerPacket(id, client_index);
-			}
-			else
-			{
-				gclients[id].vl_lock.unlock();									
-				SendPlayerPacket(id, client_index);
-			}
-		}
-		//gclients[client_index].vl_lock.unlock();								
-	}
+					SendRemovePlayerPacket(id, client_index);
 
-	gclients[client_index].vl_lock.lock();										
-	std::unordered_set<int> localviewlist = gclients[client_index].view_list;
-	gclients[client_index].vl_lock.unlock();									
+					gclients[id].vl_lock.lock();							
+					gclients[id].view_list.erase(client_index);
+					gclients[id].vl_lock.unlock();							
+				}
+				else
+					gclients[id].vl_lock.unlock();							
 
-	//보이다가 보이지 않게 되는 객체 처리 : 시야리스트에서 제거해야 되는 존재
-	for (auto& id : localviewlist)
-	{
-		gclients[client_index].vl_lock.lock();							
-		if (0 != gclients[client_index].view_list.count(id))
-		{
-			gclients[client_index].view_list.erase(id);
-			gclients[client_index].vl_lock.unlock();					
-
-			SendRemovePlayerPacket(client_index, id);
-
-			//이미 지워져 있으면 지울 필요가 없다.
-			gclients[id].vl_lock.lock();								
-			if (0 == gclients[id].view_list.count(client_index))
-			{
-				gclients[id].vl_lock.unlock();							
-
-				SendRemovePlayerPacket(id, client_index);
-
-				gclients[id].vl_lock.lock();							
-				gclients[id].view_list.erase(client_index);
-				gclients[id].vl_lock.unlock();							
 			}
 			else
-				gclients[id].vl_lock.unlock();							
+				gclients[client_index].vl_lock.unlock();							
 
 		}
-		else
-			gclients[client_index].vl_lock.unlock();							
-
-	}
 
 
+		std::unordered_set<int> remove_view_list; // 지워야 될 애들 빼야한다.
 
 
-	for (int i = 0; i < MAX_USER; ++i)
-	{
-		if (true == gclients[i].bConnected)
+		std::unordered_set<int> old_view_list;
+		gclients[client_index].vl_lock.lock();
+		old_view_list = gclients[client_index].view_list;
+		gclients[client_index].vl_lock.unlock();
+
+
+		gclients[client_index].vl_lock.lock();
+		//gclients[client_index].view_list = old_view_list; 넣는 도중에 업데이트 된게 있을 수 있으므로
+		for (auto d : old_view_list)
 		{
-			if (i != client_index)
+			gclients[client_index].view_list.insert(d);
+		}
+		gclients[client_index].vl_lock.unlock();
+
+		for (int i = 0; i < MAX_USER; ++i)
+		{
+			if (true == gclients[i].bConnected)
 			{
-				SendPlayerPacket(i, client_index);
-				SendPlayerPacket(client_index, i);
+				if (i != client_index)
+				{
+					SendPlayerPacket(i, client_index);
+					SendPlayerPacket(client_index, i);
+				}
 			}
 		}
-	}
+
+		*/
+
+	//이전버전
+	/*
+
+
+				//이전에 보이지 않던 객체
+				if (0 == gclients[client_index].view_list.count(id))	//없으면
+				{
+					//이제 보임
+					if (IsNear(client_index, id))
+					{
+						gclients[client_index].view_list.insert(id);
+
+						SendPlayerPacket(client_index, id);
+				
+						#pragma region[상대편 체크 - A]
+						if (0 == gclients[id].view_list.count(client_index))
+						{
+							gclients[id].view_list.insert(client_index);
+						}
+						SendPlayerPacket(id, client_index);
+						#pragma endregion
+					}
+				}
+
+				//이전에 보이던 객체
+				else
+				{
+					 //이제 보임
+					if (IsNear(client_index, id))
+					{
+						gclients[client_index].view_list.insert(id);
+
+						SendPlayerPacket(client_index, id);
+
+						#pragma region[상대편 체크 - A]
+						if (0 == gclients[id].view_list.count(client_index))
+						{
+							gclients[id].view_list.insert(client_index);
+						}
+						SendPlayerPacket(id, client_index);
+						#pragma endregion
+					}
+					else
+					{
+						gclients[client_index].view_list.erase(id);
+
+						#pragma region[상대편 체크 - B]
+						if (gclients[id].view_list.count(client_index))
+						{
+							gclients[id].view_list.erase(client_index);
+							SendRemovePlayerPacket(id, client_index);
+						}
+						#pragma endregion
+						SendRemovePlayerPacket(client_index, id);
+					}
+				}
+	*/
 
 	SendPositionPacket(client_index);
 }
@@ -651,6 +788,10 @@ void WorkerThread()
 		}
 
 	}
+}
+
+void TimerThread()
+{
 }
 
 int main()
