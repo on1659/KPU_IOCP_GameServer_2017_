@@ -792,6 +792,7 @@ void WorkerThread()
 
 void TimerThread()
 {
+
 }
 
 int main()
