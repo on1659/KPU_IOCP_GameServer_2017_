@@ -14,8 +14,8 @@
 #define VIEW_RADIUS   3
 
 
-//XXXXX
-#define NPC_START  1000
+//XXXXX										//NPC
+#define NPC_START  1000	
 #define NUM_OF_NPC  10000
 #define MAX_STR_SIZE  100
 

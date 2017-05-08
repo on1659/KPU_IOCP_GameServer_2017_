@@ -14,11 +14,14 @@
 #include <atomic>
 
 #include "Util.h"
+#include "ServerTimer.h"
 
 HANDLE ghIOCP;
 SOCKET gsServer;
 
 enum EVENTTYPE { E_RECV, E_SEND };
+
+CGameTimer gTimer;
 
 class MyMutext
 {
@@ -52,11 +55,11 @@ struct ClientInfo
 	std::mutex vl_lock;
 };
 	
-#define VIEW_MAX 3
+#define VIEW_MAX 20
 
 ClientInfo gclients[MAX_USER];
 
-bool IsNear(int from, int to)
+bool IsNear(const int& from, const int& to)
 {
 	return VIEW_MAX * VIEW_MAX > pow((gclients[from].x - gclients[to].x), 2) + pow((gclients[from].y - gclients[to].y), 2);
 }
@@ -519,12 +522,6 @@ void NetWorkError()
 {
 	std::cout << "NetWork Error!!!\n";
 	exit(-1);
-
-}
-
-void clear_clientt(const int& client_id)
-{
-
 }
 
 void AcceptThread()
@@ -683,7 +680,7 @@ void WorkerThread()
 
 		BOOL succ = GetQueuedCompletionStatus		// GQCS
 		(
-			ghIOCP	//global IOCP
+			  ghIOCP	//global IOCP
 			, &io_size
 			, &client_index
 			, reinterpret_cast<LPOVERLAPPED*>(&pOver) //Overlap pointer, 우리는 확장 구조체를 쓰는데 윈도우는 아니라서 reinter_cast를 한다
@@ -792,6 +789,13 @@ void WorkerThread()
 
 void TimerThread()
 {
+	while (1)
+	{
+		gTimer.Tick(60);
+
+
+
+	}
 
 }
 
