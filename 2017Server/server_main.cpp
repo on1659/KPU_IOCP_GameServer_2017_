@@ -19,7 +19,7 @@
 HANDLE ghIOCP;
 SOCKET gsServer;
 
-//#define _USE_LOCK
+#define _USE_LOCK
 
 #define VIEW_MAX 20
 
