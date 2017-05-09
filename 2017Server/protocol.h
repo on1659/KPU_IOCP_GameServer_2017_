@@ -6,7 +6,7 @@
 
 #define BOARD_WIDTH   1000
 #define BOARD_HEIGHT  1000
-#define MAX_USER 10
+#define MAX_USER 10000
 #define MY_SERVER_PORT  4000
 
 

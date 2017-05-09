@@ -19,7 +19,19 @@
 HANDLE ghIOCP;
 SOCKET gsServer;
 
+//#define _USE_LOCK
+
+#define VIEW_MAX 20
+
 enum EVENTTYPE { E_RECV, E_SEND };
+
+enum DIRECTION
+{
+	DIR_EAST
+	, DIR_WEST
+	, DIR_SOUTH
+	, DIR_NORTH
+};
 
 CGameTimer gTimer;
 
@@ -29,6 +41,7 @@ public:
 	void lock() {}
 	void unlock() {}
 };
+
 struct WSAOVERLAPPED_EX
 {
 	WSAOVERLAPPED over;
@@ -47,21 +60,22 @@ struct ClientInfo
 	SOCKET s;
 	WSAOVERLAPPED_EX recv_over;	//only use worker thread
 
-	//
+								//
 	unsigned char packet_buf[MAX_PACKET_SIZE];
 	int prev_recv_size;
 	int curr_packet_size;
 	std::unordered_set<int> view_list;
 	std::mutex vl_lock;
 };
-	
-#define VIEW_MAX 20
 
 ClientInfo gclients[MAX_USER];
 
-bool IsNear(const int& from, const int& to)
+bool IsNear(const int& from, const int& to, const int& range = VIEW_MAX)
 {
-	return VIEW_MAX * VIEW_MAX > pow((gclients[from].x - gclients[to].x), 2) + pow((gclients[from].y - gclients[to].y), 2);
+	return (range * range) >= ((gclients[from].x - gclients[to].x)
+		*(gclients[from].x - gclients[to].x)
+		+ (gclients[from].y - gclients[to].y)
+		*(gclients[from].y - gclients[to].y));
 }
 
 void pack_show(char packet)
@@ -89,7 +103,7 @@ void pack_show(char packet)
 		std::cout << "unknown packet\n";
 		break;
 	}
-	
+
 
 }
 
@@ -112,7 +126,7 @@ void InitializeServer()
 
 	//'17.04.07 KYT
 	/*
-	 한글 출력
+	한글 출력
 	*/
 	std::wcout.imbue(std::locale("korean"));
 
@@ -127,7 +141,7 @@ void InitializeServer()
 	ghIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, NULL, 0);
 
 	//이걸 설정해야 된다. 이걸 이렇게 안해 놓으면.. accept는 되는 IOCP 역활전달이 되지 않는다. error메시지가 나온지 않는다.
-	gsServer = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED); 
+	gsServer = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
 
 	SOCKADDR_IN ServerAddr;
 	ZeroMemory(&ServerAddr, sizeof(SOCKADDR_IN));
@@ -148,17 +162,17 @@ void SendPacket(const int& client_index, unsigned char* packet)
 {
 	//'17.04.07 KYT
 	/*
-		msg 추가
+	msg 추가
 	*/
-	std::cout << "Send Packet [";
-	pack_show(packet[1]);
-	std::cout << "] to client_index : " << client_index << std::endl;
+	//std::cout << "Send Packet [";
+	//pack_show(packet[1]);
+	//std::cout << "] to client_index : " << client_index << std::endl;
 
 
 	WSAOVERLAPPED_EX *send_over = new WSAOVERLAPPED_EX;
 	ZeroMemory(send_over, sizeof(WSAOVERLAPPED_EX));
 	send_over->event_type = E_SEND;
-	memcpy(send_over->IOCP_buf,packet, packet[0]);
+	memcpy(send_over->IOCP_buf, packet, packet[0]);
 	send_over->wsabuf.buf = reinterpret_cast<CHAR*>(send_over->IOCP_buf);
 	send_over->wsabuf.len = packet[0];
 	DWORD send_flag = 0;
@@ -175,19 +189,19 @@ void SendPacket(const int& client_index, unsigned char* packet)
 
 }
 
-void SendPositionPacket(const int& client_index)
+void SendPositionPacket(const int& to, const int& object)
 {
 	sc_packet_pos packet;
-	packet.id = static_cast<WORD>(client_index);
+	packet.id = static_cast<WORD>(object);
 	packet.size = sizeof(sc_packet_pos);
 	packet.type = SC_POS;
-	packet.x = static_cast<BYTE>(gclients[client_index].x);
-	packet.y = static_cast<BYTE>(gclients[client_index].y);
-	
-	SendPacket(client_index, reinterpret_cast<unsigned char*>(&packet));
+	packet.x = static_cast<BYTE>(gclients[object].x);
+	packet.y = static_cast<BYTE>(gclients[object].y);
+
+	SendPacket(to, reinterpret_cast<unsigned char*>(&packet));
 }
 
-void SendPlayerPacket(const int& target_client, const int& new_client)
+void SendPutPlayerPacket(const int& target_client, const int& new_client)
 {
 	sc_packet_put_player packet;
 	packet.id = static_cast<WORD>(new_client);
@@ -216,8 +230,8 @@ void SendRemovePlayerPacket(const int& to, const int& object)
 {
 	//'17.04.07 KYT
 	/*
-		sc_packet_remove_player *packet = new sc_packet_remove_player();
-		이렇게 만들어야되고, 5천명이면 5천번 보내야 된 후  delete 해야 한다.
+	sc_packet_remove_player *packet = new sc_packet_remove_player();
+	이렇게 만들어야되고, 5천명이면 5천번 보내야 된 후  delete 해야 한다.
 	*/
 	sc_packet_remove_player packet;
 	packet.id = static_cast<WORD>(object);
@@ -231,7 +245,7 @@ void ProcessPacket(const int& client_index, unsigned char *packet)
 {
 	//'17.04.07 KYT
 	/*
-		msg 추가
+	msg 추가
 	*/
 	std::cout << "pakcet[";
 	pack_show(packet[1]);
@@ -239,283 +253,157 @@ void ProcessPacket(const int& client_index, unsigned char *packet)
 
 	switch (packet[1])
 	{
+	case CS_UP:
+		if (gclients[client_index].y > 0) gclients[client_index].y--;
+		break;
 
-		case CS_UP: 
-			if(gclients[client_index].y > 0) gclients[client_index].y--;
-			break;
+	case CS_DOWN:
+		if (BOARD_HEIGHT - 1 > gclients[client_index].y) gclients[client_index].y++;
+		break;
 
-		case CS_DOWN:
-			if(BOARD_HEIGHT - 1 > gclients[client_index].y) gclients[client_index].y++;
-			break;
+	case CS_LEFT:
+		if (gclients[client_index].x > 0) gclients[client_index].x--;
+		break;
 
-		case CS_LEFT:
-			if (gclients[client_index].x > 0) gclients[client_index].x--;
-			break;
+	case CS_RIGHT:
+		if (BOARD_WIDTH - 1 > gclients[client_index].x) gclients[client_index].x++;
+		break;
 
-		case CS_RIGHT:
-			if (BOARD_WIDTH - 1 > gclients[client_index].x) gclients[client_index].x++;
-			break;
+	default:
+		std::cout << "unknown packet from client [ " << client_index << " ]\n";
+		break;
+	}
 
-		default:
-			std::cout << "unknown packet from client [ " << client_index << " ]\n";
-			break;
+#ifdef _USE_LOCK
+#pragma region [시야처리 lock]
+	std::unordered_set<int> new_view_list;
+
+	for (int i = 0; i < MAX_USER; ++i)
+	{
+		if (i == client_index)continue;
+
+		if (gclients[i].bConnected)
+		{
+			new_view_list.insert(i);
+		}
 	}
 
 
-	#pragma region[MyCode]
-	
-		std::unordered_set<int> new_view_list;
-
-		for (int i = 0; i < MAX_USER; ++i)
+	for (auto& id : new_view_list)
+	{
+		if (IsNear(client_index, id))
 		{
-			if (i == client_index)continue;
-		
-			if (gclients[i].bConnected)
+			gclients[client_index].vl_lock.lock();
+			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
 			{
-				new_view_list.insert(i);
-			}
-		}
+				gclients[client_index].vl_lock.unlock();
 
-
-		for (auto& id : new_view_list)
-		{
-			if (IsNear(client_index, id))
-			{
-
-				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+				gclients[id].vl_lock.lock();
+				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
 				{
-					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
-					{
-						gclients[id].view_list.insert(client_index);
-					}
-				}
-
-				else											//이전에 보이지 않음
-				{
-					gclients[client_index].view_list.insert(id);
-
-					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
-					{
-						gclients[id].view_list.insert(client_index);
-					}
-
-				}
-				SendPlayerPacket(id, client_index);
-				SendPlayerPacket(client_index, id);
-
-			}
-			else
-			{
-				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
-				{
-					gclients[client_index].view_list.erase(id);
-					SendRemovePlayerPacket(client_index, id);
-				}
-
-				if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
-				{
-					gclients[id].view_list.erase(client_index);
-					SendRemovePlayerPacket(id, client_index);
+					gclients[id].view_list.insert(client_index);
+					gclients[id].vl_lock.unlock();
 				}
 			}
-		}
-	#pragma endregion
 
-
-	//KYT '17.04.22 
-	//정내훈 교수님 코드
-	/*
-		std::unordered_set<int> new_view_list;
-
-		for (int i = 0; i < MAX_USER; ++i)
-		{
-			if (i == client_index)continue;
-		
-			if (gclients[i].bConnected & (IsNear(client_index, i)) )
+			else											//이전에 보이지 않음
 			{
-				new_view_list.insert(i);
-			}
-
-		}
-		for (auto& id : new_view_list)
-		{
-
-			//gclients[client_index].vl_lock.lock();									-- 1차 lock
-			gclients[client_index].vl_lock.lock();										//-- 2차 lock
-
-			//보이지 않다가 보이게 된 객체 처리  : 시야 리스트에 존재하지 않았떤 존재
-			if (0 == gclients[client_index].view_list.count(id))
-			{
+				gclients[client_index].vl_lock.lock();
 				gclients[client_index].view_list.insert(id);
-				gclients[client_index].vl_lock.unlock();								//--2차 unlock
+				gclients[client_index].vl_lock.unlock();
 
-				SendPlayerPacket(client_index, id);
-
-
-				gclients[id].vl_lock.lock();										//-- 2차 lock
-				if (0 == gclients[id].view_list.count(client_index))
+				gclients[id].vl_lock.lock();
+				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
 				{
 					gclients[id].view_list.insert(client_index);
-					gclients[id].vl_lock.unlock();								//--2차 unlock
-
-					SendPlayerPacket(id, client_index);
-				}
-				else
-				{
-					gclients[client_index].vl_lock.unlock();					
-					SendPlayerPacket(id, client_index);
+					gclients[id].vl_lock.unlock();
 				}
 
-
-			}	
-			//계속 보이고 있떤 객체 처리
-			else
-			{
-				gclients[client_index].vl_lock.unlock();						
-				gclients[id].vl_lock.lock();									
-				if (0 == gclients[id].view_list.count(client_index))
-				{
-					gclients[id].view_list.insert(client_index);
-					gclients[id].vl_lock.unlock();								
-
-					SendPlayerPacket(id, client_index);
-				}
-				else
-				{
-					gclients[id].vl_lock.unlock();									
-					SendPlayerPacket(id, client_index);
-				}
 			}
-			//gclients[client_index].vl_lock.unlock();								
+			SendPutPlayerPacket(id, client_index);
+			SendPutPlayerPacket(client_index, id);
+
 		}
-
-		gclients[client_index].vl_lock.lock();										
-		std::unordered_set<int> localviewlist = gclients[client_index].view_list;
-		gclients[client_index].vl_lock.unlock();									
-
-		//보이다가 보이지 않게 되는 객체 처리 : 시야리스트에서 제거해야 되는 존재
-		for (auto& id : localviewlist)
+		else
 		{
-			gclients[client_index].vl_lock.lock();							
-			if (0 != gclients[client_index].view_list.count(id))
+			gclients[client_index].vl_lock.lock();
+			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
 			{
 				gclients[client_index].view_list.erase(id);
-				gclients[client_index].vl_lock.unlock();					
-
+				gclients[client_index].vl_lock.unlock();
 				SendRemovePlayerPacket(client_index, id);
-
-				//이미 지워져 있으면 지울 필요가 없다.
-				gclients[id].vl_lock.lock();		// Loop를 돌때마다 lock을 거릭 때문에 noblocking 자료구조가 아니면 힘들다.		
-				if (0 == gclients[id].view_list.count(client_index))
-				{
-					gclients[id].vl_lock.unlock();							
-
-					SendRemovePlayerPacket(id, client_index);
-
-					gclients[id].vl_lock.lock();							
-					gclients[id].view_list.erase(client_index);
-					gclients[id].vl_lock.unlock();							
-				}
-				else
-					gclients[id].vl_lock.unlock();							
-
 			}
-			else
-				gclients[client_index].vl_lock.unlock();							
 
-		}
-
-
-		std::unordered_set<int> remove_view_list; // 지워야 될 애들 빼야한다.
-
-
-		std::unordered_set<int> old_view_list;
-		gclients[client_index].vl_lock.lock();
-		old_view_list = gclients[client_index].view_list;
-		gclients[client_index].vl_lock.unlock();
-
-
-		gclients[client_index].vl_lock.lock();
-		//gclients[client_index].view_list = old_view_list; 넣는 도중에 업데이트 된게 있을 수 있으므로
-		for (auto d : old_view_list)
-		{
-			gclients[client_index].view_list.insert(d);
-		}
-		gclients[client_index].vl_lock.unlock();
-
-		for (int i = 0; i < MAX_USER; ++i)
-		{
-			if (true == gclients[i].bConnected)
+			gclients[id].vl_lock.lock();
+			if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
 			{
-				if (i != client_index)
-				{
-					SendPlayerPacket(i, client_index);
-					SendPlayerPacket(client_index, i);
-				}
+				gclients[id].view_list.erase(client_index);
+				gclients[id].vl_lock.unlock();
+				SendRemovePlayerPacket(id, client_index);
 			}
 		}
+	}
+#pragma endregion
+#else
+#pragma region[시야처리 unlock]
+	std::unordered_set<int> new_view_list;
 
-		*/
+	for (int i = 0; i < MAX_USER; ++i)
+	{
+		if (i == client_index)continue;
 
-	//이전버전
-	/*
+		if (gclients[i].bConnected)
+		{
+			new_view_list.insert(i);
+		}
+	}
 
-
-				//이전에 보이지 않던 객체
-				if (0 == gclients[client_index].view_list.count(id))	//없으면
+	for (auto& id : new_view_list)
+	{
+		if (IsNear(client_index, id))
+		{
+			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+			{
+				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
 				{
-					//이제 보임
-					if (IsNear(client_index, id))
-					{
-						gclients[client_index].view_list.insert(id);
+					gclients[id].view_list.insert(client_index);
+				}
+			}
 
-						SendPlayerPacket(client_index, id);
-				
-						#pragma region[상대편 체크 - A]
-						if (0 == gclients[id].view_list.count(client_index))
-						{
-							gclients[id].view_list.insert(client_index);
-						}
-						SendPlayerPacket(id, client_index);
-						#pragma endregion
-					}
+			else											//이전에 보이지 않음
+			{
+				gclients[client_index].view_list.insert(id);
+
+				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+				{
+					gclients[id].view_list.insert(client_index);
 				}
 
-				//이전에 보이던 객체
-				else
-				{
-					 //이제 보임
-					if (IsNear(client_index, id))
-					{
-						gclients[client_index].view_list.insert(id);
+			}
+			SendPutPlayerPacket(id, client_index);
+			SendPutPlayerPacket(client_index, id);
 
-						SendPlayerPacket(client_index, id);
+		}
+		else
+		{
+			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+			{
+				gclients[client_index].view_list.erase(id);
+				SendRemovePlayerPacket(client_index, id);
+			}
 
-						#pragma region[상대편 체크 - A]
-						if (0 == gclients[id].view_list.count(client_index))
-						{
-							gclients[id].view_list.insert(client_index);
-						}
-						SendPlayerPacket(id, client_index);
-						#pragma endregion
-					}
-					else
-					{
-						gclients[client_index].view_list.erase(id);
+			if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+			{
+				gclients[id].view_list.erase(client_index);
+				SendRemovePlayerPacket(id, client_index);
+			}
+		}
+	}
+#pragma endregion
+#endif
 
-						#pragma region[상대편 체크 - B]
-						if (gclients[id].view_list.count(client_index))
-						{
-							gclients[id].view_list.erase(client_index);
-							SendRemovePlayerPacket(id, client_index);
-						}
-						#pragma endregion
-						SendRemovePlayerPacket(client_index, id);
-					}
-				}
-	*/
 
-	SendPositionPacket(client_index);
+	SendPositionPacket(client_index, client_index);
 }
 
 void NetWorkError()
@@ -532,7 +420,7 @@ void AcceptThread()
 	clientAddr.sin_port = htons(MY_SERVER_PORT);
 	clientAddr.sin_addr.s_addr = (INADDR_ANY);
 	int addr_len = sizeof(clientAddr);
-	while (true) 
+	while (true)
 	{
 		SOCKET sClient = WSAAccept(gsServer, reinterpret_cast<sockaddr *>(&clientAddr), &addr_len, NULL, NULL);
 
@@ -561,7 +449,7 @@ void AcceptThread()
 
 		std::cout << " ID = " << new_client_id << " " << std::endl;
 
-	//	ZeroMemory(&gclients[new_client_id], sizeof(gclients[new_client_id]));
+		//	ZeroMemory(&gclients[new_client_id], sizeof(gclients[new_client_id]));
 
 		gclients[new_client_id].curr_packet_size = 0;
 		gclients[new_client_id].prev_recv_size = 0;
@@ -579,11 +467,11 @@ void AcceptThread()
 		gclients[new_client_id].recv_over.event_type = E_RECV;		//Recv니깐
 		gclients[new_client_id].recv_over.wsabuf.buf = reinterpret_cast<CHAR *>(gclients[new_client_id].recv_over.IOCP_buf);//WSA니깐 wsabuf
 
-		// len = 0 이 되면 아무것도 하지 않는다.
+																															// len = 0 이 되면 아무것도 하지 않는다.
 
 		gclients[new_client_id].recv_over.wsabuf.len = sizeof(gclients[new_client_id].recv_over.IOCP_buf);//진짜 버퍼의 길이
-		
-		SendPlayerPacket(new_client_id, new_client_id);
+
+		SendPutPlayerPacket(new_client_id, new_client_id);
 
 		for (int i = 0; i < MAX_USER; ++i)
 		{
@@ -597,20 +485,19 @@ void AcceptThread()
 						gclients[i].view_list.insert(new_client_id);
 						gclients[i].vl_lock.unlock();
 
-						SendPlayerPacket(i, new_client_id);
-						SendPlayerPacket(new_client_id, i);
+						SendPutPlayerPacket(i, new_client_id);
+						SendPutPlayerPacket(new_client_id, i);
 					}
 				}
 			}
 		}
 
 
-
 		DWORD recvFlag = 0;
 
-		int res =  WSARecv
+		int res = WSARecv
 		(
-			  sClient
+			sClient
 			, &gclients[new_client_id].recv_over.wsabuf
 			, 1			// 1을 넣어야 된다. 여기에 wsabuf.len을 넣으면 ㄹㅇ 산으로간다. 하나밖에 안썼으니 1을 넣어야 한다.
 			, NULL
@@ -634,7 +521,7 @@ void AcceptThread()
 
 //'17.04.07 KYT
 /*
-	Disconnect Client & socket init
+Disconnect Client & socket init
 */
 void DisconnectClient(const int& client_index)
 {
@@ -680,7 +567,7 @@ void WorkerThread()
 
 		BOOL succ = GetQueuedCompletionStatus		// GQCS
 		(
-			  ghIOCP	//global IOCP
+			ghIOCP	//global IOCP
 			, &io_size
 			, &client_index
 			, reinterpret_cast<LPOVERLAPPED*>(&pOver) //Overlap pointer, 우리는 확장 구조체를 쓰는데 윈도우는 아니라서 reinter_cast를 한다
@@ -699,20 +586,20 @@ void WorkerThread()
 		{
 			// 접속 종료
 			DisconnectClient(static_cast<int>(client_index));
-			continue; 
+			continue;
 		}
 
 
 		else if (E_RECV == pOver->event_type)
 		{
-			std::cout << " data from Client" ;
+			std::cout << " data from Client";
 			int to_process = io_size;
 			unsigned char *buf_ptr = gclients[client_index].recv_over.IOCP_buf;	// ?
 			unsigned char packet_buf[MAX_PACKET_SIZE]; // 패킷을 저장할 패킷 버퍼를 만든다.
-			
-			int pSize = gclients[client_index].curr_packet_size;		
+
+			int pSize = gclients[client_index].curr_packet_size;
 			int prevSize = gclients[client_index].prev_recv_size;	//변수명이 길어서 깔끔하게 하려고 변수 하나 더 선언
-			
+
 			while (0 != to_process)
 			{
 				if (pSize == 0) pSize = buf_ptr[0];		//packet_size가 0 이면 buf_ptr[0]을 처리 할 상태이다.
@@ -721,7 +608,7 @@ void WorkerThread()
 				{
 					//'17.04.07 KYT
 					/*
-						momory overhead...!
+					momory overhead...!
 					*/
 					memcpy(packet_buf, gclients[client_index].packet_buf, prevSize); //지난번에 받은 패킷.
 					memcpy(packet_buf + prevSize, buf_ptr, pSize - prevSize);
@@ -729,8 +616,8 @@ void WorkerThread()
 
 					ProcessPacket(static_cast<int>(client_index), packet_buf);
 					to_process -= pSize - prevSize;	//남은 사이즈 감소
-					   buf_ptr += pSize - prevSize; // buf도 사용했으니깐 전진
-					pSize = 0; prevSize = 0; 
+					buf_ptr += pSize - prevSize; // buf도 사용했으니깐 전진
+					pSize = 0; prevSize = 0;
 					//받은사이즈가 크거나 같으면!, 
 					// to_prcess는 이번에 받은거고, prev_recv_size는 지난번에 받은거
 				}
@@ -742,15 +629,15 @@ void WorkerThread()
 					buf_ptr += to_process;
 				}
 			}
-				// loop 밖에 있어야 한다.
-				gclients[client_index].curr_packet_size = pSize;
-				gclients[client_index].prev_recv_size = prevSize;
-		
-				DWORD recvFlag = 0;
+			// loop 밖에 있어야 한다.
+			gclients[client_index].curr_packet_size = pSize;
+			gclients[client_index].prev_recv_size = prevSize;
+
+			DWORD recvFlag = 0;
 
 			int ret = WSARecv
 			(
-				  gclients[client_index].s
+				gclients[client_index].s
 				, &gclients[client_index].recv_over.wsabuf
 				, 1
 				, NULL
@@ -787,6 +674,136 @@ void WorkerThread()
 	}
 }
 
+//KYT '17.05.07
+/*
+NPC Server
+*/
+void InitializeNPC()
+{
+	// x,y 두개만 초기화하면 됩니다.
+	for (int i = NPC_START; i < NUM_OF_NPC; ++i)
+	{
+
+		gclients[i].x = rand() % BOARD_WIDTH;
+		gclients[i].y = rand() % BOARD_HEIGHT;
+
+		if (i < NPC_START + 10)
+		{
+			gclients[i].x = rand() % 5;//BOARD_WIDTH;
+			gclients[i].y = rand() % 5;//BOARD_HEIGHT;
+		}
+		gclients[i].bConnected = false;		//참조하면 안되지만 안전을 위해서
+	}
+
+}
+
+void NPC_Control_Thread()
+{
+	while (1)
+	{
+		//auto start_time = std::chrono::high_resolution_clock::now();
+		gTimer.Tick(1);
+		//auto du = std::chrono::high_resolution_clock::now() - start_time;
+		//std::cout << "\t time : " << std::chrono::duration_cast<std::chrono::microseconds>(du).count() << std::endl;
+		for (int npc_id = NPC_START; npc_id < NUM_OF_NPC; ++npc_id)
+		{
+			int dir = rand() % 4;
+
+			switch (dir)
+			{
+			case DIR_EAST:
+				gclients[npc_id].x++;
+				if (gclients[npc_id].x >= BOARD_WIDTH) gclients[npc_id].x = BOARD_WIDTH - 1;
+				break;
+			case DIR_WEST:
+				gclients[npc_id].x--;
+				if (gclients[npc_id].x < 0) gclients[npc_id].x = 0;
+				break;
+			case DIR_NORTH:
+				gclients[npc_id].y++;
+				if (gclients[npc_id].y >= BOARD_HEIGHT) gclients[npc_id].y = BOARD_HEIGHT - 1;
+				break;
+			case DIR_SOUTH:
+				gclients[npc_id].y--;
+				if (gclients[npc_id].y < 0) gclients[npc_id].y = BOARD_HEIGHT - 1;
+				break;
+			}
+
+
+#ifdef _USE_LOCK
+			for (int player_id = 0; player_id < NPC_START; player_id++)
+			{
+				gclients[player_id].vl_lock.lock();
+				if (gclients[player_id].bConnected)
+				{
+					gclients[player_id].vl_lock.unlock();
+
+					if (IsNear(player_id, npc_id))
+					{
+						gclients[player_id].vl_lock.lock();
+						if (0 == gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+						{
+							gclients[player_id].view_list.insert(npc_id);
+							gclients[player_id].vl_lock.unlock();
+						}
+						SendPutPlayerPacket(player_id, npc_id);
+					}
+					else
+					{
+						gclients[player_id].vl_lock.lock();
+						if (gclients[player_id].view_list.empty())
+						{
+							gclients[player_id].vl_lock.unlock();
+							continue;
+						}
+
+						if (gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+						{
+							gclients[player_id].view_list.erase(npc_id);
+							gclients[player_id].vl_lock.unlock();
+
+							SendRemovePlayerPacket(player_id, npc_id);
+						}
+					}
+				}
+				else
+				{
+					gclients[player_id].vl_lock.unlock();
+				}
+
+			}
+#else
+			for (int player_id = 0; player_id < NPC_START; player_id++)
+			{
+				if (gclients[player_id].bConnected)
+				{
+					if (IsNear(player_id, npc_id))
+					{
+						if (0 == gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+						{
+							gclients[player_id].view_list.insert(npc_id);
+						}
+						SendPutPlayerPacket(player_id, npc_id);
+					}
+					else
+					{
+						if (gclients[player_id].view_list.empty())continue;
+
+						if (gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+						{
+							gclients[player_id].view_list.erase(npc_id);
+							SendRemovePlayerPacket(player_id, npc_id);
+						}
+					}
+				}
+			}
+#endif
+		}
+		//auto du = std::chrono::high_resolution_clock::now() - start_time;
+		//Sleep(1000U - std::chrono::duration_cast<std::chrono::milliseconds>(du).count());
+	}
+}
+
 void TimerThread()
 {
 	while (1)
@@ -802,18 +819,25 @@ void TimerThread()
 int main()
 {
 	InitializeServer();
+
+	InitializeNPC();
+
+
 	std::thread accept_thread{ AcceptThread };
 
+	std::thread ai_thread{ NPC_Control_Thread };
+
 	std::vector<std::thread*> vWorker_Thread;
+
 	for (int i = 0; i < 6; ++i)
 	{
-		vWorker_Thread.push_back(new std::thread{WorkerThread});
+		vWorker_Thread.push_back(new std::thread{ WorkerThread });
 	}
 
 	//CreateAcceptThread();
 
 	accept_thread.join();
-
+	ai_thread.join();
 	for (auto &thread : vWorker_Thread)
 	{
 		if (thread)
@@ -825,3 +849,5 @@ int main()
 	}
 	vWorker_Thread.clear();
 }
+
+
