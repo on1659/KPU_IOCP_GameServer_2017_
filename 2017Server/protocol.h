@@ -16,7 +16,7 @@
 
 //XXXXX										//NPC
 #define NPC_START  1000	
-#define NUM_OF_NPC  10000
+#define NUM_OF_NPC  100000
 #define MAX_STR_SIZE  100
 
 // Protocol ID

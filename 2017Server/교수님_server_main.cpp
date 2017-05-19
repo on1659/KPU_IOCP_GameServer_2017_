@@ -19,6 +19,7 @@ using namespace chrono;
 
 HANDLE ghIOCP;
 SOCKET gsServer;
+#define VIEW_MAX 7
 
 enum EVENTTYPE { E_RECV, E_SEND, E_DOAI, E_MOVE };
 
@@ -32,7 +33,8 @@ struct WSAOVERLAPPED_EX {
 struct ClientInfo {
 	int x, y;
 	volatile bool bConnected;
-	volatile bool bIsActive;
+	volatile bool bIsAlive;  //NPC 생사여부
+	volatile bool bIsActive;  //NPC활동여부
 
 	SOCKET s;
 	WSAOVERLAPPED_EX recv_over;
@@ -79,13 +81,14 @@ bool IsPlayer(int id)
 	else return false;
 }
 
-bool IsNear(int from, int to)
+constexpr bool IsNear(const int& from,const int& to)
 {
-	return VIEW_RADIUS * VIEW_RADIUS >= ((gclients[from].x - gclients[to].x)
-		*(gclients[from].x - gclients[to].x)
+	return (VIEW_MAX * VIEW_MAX) >= ((gclients[from].x - gclients[to].x) * (gclients[from].x - gclients[to].x)
 		+ (gclients[from].y - gclients[to].y)
-		*(gclients[from].y - gclients[to].y));
+		* (gclients[from].y - gclients[to].y));
 }
+constexpr bool isNPC(const int& id) { return id >= NPC_START ? true : false; }
+void WakeUpNPC(const int& id);
 
 void InitializeNPC()
 {
@@ -94,11 +97,9 @@ void InitializeNPC()
 		gclients[i].x = rand() % BOARD_WIDTH;
 		gclients[i].y = rand() % BOARD_HEIGHT;
 		gclients[i].bConnected = false;
-		gclients[i].bIsActive = true;
-
-		gTmer_lock.lock();
-		timer_queue.push(TimerItem{ i, GetTickCount() * 1000, E_MOVE });
-		gTmer_lock.unlock();
+		gclients[i].bIsAlive = true;
+		gclients[i].bIsActive = false;
+		
 	}
 }
 
@@ -108,7 +109,7 @@ void InitializeServer()
 
 	for (int i = 0; i < MAX_USER; ++i) {
 		gclients[i].bConnected = false;
-		gclients[i].bIsActive = false;
+		gclients[i].bIsAlive = false;
 	}
 
 	InitializeNPC();
@@ -143,7 +144,7 @@ void NetworkError()
 	std::cout << "Something Wrong\n";
 }
 
-void SendPacket(int cl, unsigned char *packet)
+void SendPacket(const int& cl, unsigned char *packet)
 {
 	std::cout << "Send Packet[" << static_cast<int>(packet[1]) << "] to Client : " << cl << std::endl;
 	WSAOVERLAPPED_EX *send_over = new WSAOVERLAPPED_EX;
@@ -157,7 +158,7 @@ void SendPacket(int cl, unsigned char *packet)
 		send_flag, &send_over->over, NULL);
 }
 
-void SendPositionPacket(int to, int object)
+void SendPositionPacket(const int& to, const int& object)
 {
 	sc_packet_pos packet;
 	packet.id = object;
@@ -169,7 +170,7 @@ void SendPositionPacket(int to, int object)
 	SendPacket(to, reinterpret_cast<unsigned char *>(&packet));
 }
 
-void SendPutPlayerPacket(int target_client, int new_client)
+void SendPutPlayerPacket(const int& target_client, const int& new_client)
 {
 	sc_packet_put_player packet;
 	packet.id = new_client;
@@ -181,7 +182,7 @@ void SendPutPlayerPacket(int target_client, int new_client)
 	SendPacket(target_client, reinterpret_cast<unsigned char *>(&packet));
 }
 
-void SendRemovePlayerPacket(int target_client, int new_client)
+void SendRemovePlayerPacket(const int& target_client, const int& new_client)
 {
 	sc_packet_remove_player packet;
 	packet.id = new_client;
@@ -191,7 +192,7 @@ void SendRemovePlayerPacket(int target_client, int new_client)
 	SendPacket(target_client, reinterpret_cast<unsigned char *>(&packet));
 }
 
-void HEART_BEAT(int i)
+void HEART_BEAT(const int& i)
 {
 	volatile int dummy;
 
@@ -239,9 +240,24 @@ void HEART_BEAT(int i)
 			else gclients[pi].vl_lock.unlock();
 		}
 	}
+
+	for (int p = 0; p < MAX_USER; ++p)
+	{
+		if (gclients[p].bConnected && (IsNear(p, i)))
+		{
+			gclients[i].bIsAlive = true;
+
+			gTmer_lock.lock();
+			timer_queue.push(TimerItem{ i, GetTickCount() + 1000, E_MOVE });
+			gTmer_lock.unlock();
+			return;
+		}
+	}
+	gclients[i].bIsAlive = false;
+
 }
 
-void ProcessPacket(int cl, unsigned char *packet)
+void ProcessPacket(const int& cl, unsigned char *packet)
 {
 	std::cout << "Packet [" << packet[1] << "] from Client :" << cl << std::endl;
 	switch (packet[1])
@@ -265,7 +281,7 @@ void ProcessPacket(int cl, unsigned char *packet)
 
 	unordered_set<int> new_view_list;
 	for (int i = 0; i < NUM_OF_NPC; ++i)
-		if ((true == gclients[i].bIsActive) && (true == IsNear(cl, i)))
+		if ((true == gclients[i].bIsAlive) && (true == IsNear(cl, i)))
 			new_view_list.insert(i);
 
 	unordered_set<int> ovl;
@@ -314,6 +330,8 @@ void ProcessPacket(int cl, unsigned char *packet)
 			remove_list.insert(id);
 			SendRemovePlayerPacket(cl, id);
 
+			if (isNPC(id)) WakeUpNPC(id);
+
 			if (false == IsPlayer(id)) continue;
 			gclients[id].vl_lock.lock();
 			if (0 != gclients[id].view_list.count(cl)) {
@@ -330,11 +348,11 @@ void ProcessPacket(int cl, unsigned char *packet)
 	gclients[cl].vl_lock.unlock();
 }
 
-void DisconnectClient(int cl)
+void DisconnectClient(const int& cl)
 {
 	closesocket(gclients[cl].s);
 	gclients[cl].bConnected = false;
-	gclients[cl].bIsActive = false;
+	gclients[cl].bIsAlive = false;
 	for (int i = 0; i < MAX_USER;++i)
 		if (true == gclients[i].bConnected) {
 			gclients[i].vl_lock.lock();
@@ -458,7 +476,7 @@ void AcceptThread()
 		gclients[new_client_id].vl_lock.unlock();
 		gclients[new_client_id].s = sClient;
 		gclients[new_client_id].bConnected = true;
-		gclients[new_client_id].bIsActive = true;
+		gclients[new_client_id].bIsAlive = true;
 		CreateIoCompletionPort(reinterpret_cast<HANDLE>(sClient), ghIOCP, new_client_id, 0);
 		ZeroMemory(reinterpret_cast<char *>(&(gclients[new_client_id].recv_over.over)),
 			sizeof(gclients[new_client_id].recv_over.over));
@@ -478,20 +496,30 @@ void AcceptThread()
 
 		unordered_set <int> locallist;
 		for (int i = 0; i < NUM_OF_NPC; ++i)
-			if (true == gclients[i].bIsActive)
+		{
+			if (true == gclients[i].bIsAlive)
+			{
 				if (i != new_client_id)
-					if (true == IsNear(i, new_client_id)) {
+				{
+					if (true == IsNear(i, new_client_id)) 
+					{
+						if (isNPC(i)) WakeUpNPC(i);
+
 						locallist.insert(i);
 						SendPutPlayerPacket(new_client_id, i);
 						if (false == gclients[i].bConnected) continue;
 						gclients[i].vl_lock.lock();
-						if (0 == gclients[i].view_list.count(new_client_id)) {
+						if (0 == gclients[i].view_list.count(new_client_id)) 
+						{
 							gclients[i].view_list.insert(new_client_id);
 							gclients[i].vl_lock.unlock();
 							SendPutPlayerPacket(i, new_client_id);
 						}
 						else gclients[i].vl_lock.unlock();	
 					}
+				}
+			}
+		}
 		gclients[new_client_id].vl_lock.lock();
 		for (auto p : locallist) gclients[new_client_id].view_list.insert(p);
 		gclients[new_client_id].vl_lock.unlock();
@@ -506,7 +534,13 @@ void TimerThread()
 		do {
 			
 			gTmer_lock.lock();
-			
+
+			if (timer_queue.empty())
+			{
+				gTmer_lock.unlock();
+				break;
+			}
+
 			TimerItem t = timer_queue.top();
 			if (t.exec_time > GetTickCount())
 			{
@@ -518,7 +552,8 @@ void TimerThread()
 
 			WSAOVERLAPPED_EX *over_ex = new WSAOVERLAPPED_EX;
 
-			if (E_MOVE == t.t_event)over_ex->event_type = E_DOAI;
+			if (E_MOVE == t.t_event)
+				over_ex->event_type = E_DOAI;
 			
 			PostQueuedCompletionStatus(ghIOCP, 1, t.id, &over_ex->over);
 		} while (true);
@@ -546,7 +581,7 @@ void npc_control_thread()
 //#define _USE_AI_THREAD
 int main()
 {
-	std::vector <std::thread *> worker_threads;
+	std::vector <std::thread*> worker_threads;
 	//
 	InitializeServer();
 
@@ -572,4 +607,10 @@ int main()
 	#endif
 
 	CloseServer();
+}
+
+void WakeUpNPC(const int& id)
+{
+	if (true == gclients[id].bIsActive)return;
+	HEART_BEAT(id);
 }
