@@ -15,6 +15,7 @@
 
 #include "Util.h"
 #include "ServerTimer.h"
+#include "MiniDump.h"
 
 HANDLE ghIOCP;
 SOCKET gsServer;
@@ -23,7 +24,7 @@ SOCKET gsServer;
 
 #define VIEW_MAX 20
 
-enum EVENTTYPE { E_RECV, E_SEND };
+enum EVENTTYPE { E_RECV, E_SEND, E_DOAI };
 
 enum DIRECTION
 {
@@ -50,12 +51,14 @@ struct WSAOVERLAPPED_EX
 	EVENTTYPE event_type;
 };
 
-struct ClientInfo
+class ClientInfo
 {
+public:
 	std::mutex glock; //접근 할때마다 lock을 걸어야 할 수 있음
 	int x, y;
 	//std::atomic<bool> bConnected;
 	volatile bool bConnected;
+	volatile bool bIsActive;	//살아있는지 죽어있는지
 
 	SOCKET s;
 	WSAOVERLAPPED_EX recv_over;	//only use worker thread
@@ -66,9 +69,23 @@ struct ClientInfo
 	int curr_packet_size;
 	std::unordered_set<int> view_list;
 	std::mutex vl_lock;
+
+	void HeartBeat() {}
 };
 
 ClientInfo gclients[MAX_USER];
+
+constexpr bool IsPlayer(const int& i) 
+{
+	return (i < NPC_START);
+}
+
+void client_init(const int& i)
+{
+	gclients[i].bConnected = false;
+	gclients[i].bIsActive = false;
+}
+
 
 bool IsNear(const int& from, const int& to, const int& range = VIEW_MAX)
 {
@@ -126,13 +143,14 @@ void InitializeServer()
 
 	//'17.04.07 KYT
 	/*
-	한글 출력
+		한글 출력
 	*/
 	std::wcout.imbue(std::locale("korean"));
 
 	for (int i = 0; i < MAX_USER; ++i)
 	{
-		gclients[i].bConnected = false;
+		client_init(i);
+		//gclients[i].bConnected = false;
 	}
 
 	WSADATA	wsadata;
@@ -274,133 +292,144 @@ void ProcessPacket(const int& client_index, unsigned char *packet)
 		break;
 	}
 
-#ifdef _USE_LOCK
-#pragma region [시야처리 lock]
-	std::unordered_set<int> new_view_list;
+	#ifdef _USE_LOCK
+	#pragma region [시야처리 lock]
+		std::unordered_set<int> new_view_list;
 
-	for (int i = 0; i < MAX_USER; ++i)
-	{
-		if (i == client_index)continue;
-
-		if (gclients[i].bConnected)
+		for (int i = 0; i < NPC_START; ++i)
 		{
-			new_view_list.insert(i);
-		}
-	}
+			if (i == client_index)continue;
+			if (!IsNear(client_index, i)) continue;
 
-
-	for (auto& id : new_view_list)
-	{
-		if (IsNear(client_index, id))
-		{
-			gclients[client_index].vl_lock.lock();
-			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+			if (gclients[i].bConnected)
 			{
-				gclients[client_index].vl_lock.unlock();
-
-				gclients[id].vl_lock.lock();
-				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
-				{
-					gclients[id].view_list.insert(client_index);
-					gclients[id].vl_lock.unlock();
-				}
+				new_view_list.insert(i);
 			}
+		}
 
-			else											//이전에 보이지 않음
+		for (int i = NPC_START; i < NUM_OF_NPC; ++i)
+		{
+			if (i == client_index)continue;
+			if (!IsNear(client_index, i)) continue;
+
+			if (gclients[i].bIsActive)
+			{
+				new_view_list.insert(i);
+			}
+		}
+
+		for (auto& id : new_view_list)
+		{
+			if (IsNear(client_index, id))
 			{
 				gclients[client_index].vl_lock.lock();
-				gclients[client_index].view_list.insert(id);
-				gclients[client_index].vl_lock.unlock();
+				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+				{
+					gclients[client_index].vl_lock.unlock();
+
+					gclients[id].vl_lock.lock();
+					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+					{
+						gclients[id].view_list.insert(client_index);
+						gclients[id].vl_lock.unlock();
+					}
+				}
+
+				else											//이전에 보이지 않음
+				{
+					gclients[client_index].vl_lock.lock();
+					gclients[client_index].view_list.insert(id);
+					gclients[client_index].vl_lock.unlock();
+
+					gclients[id].vl_lock.lock();
+					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+					{
+						gclients[id].view_list.insert(client_index);
+						gclients[id].vl_lock.unlock();
+					}
+
+				}
+				SendPutPlayerPacket(id, client_index);
+				SendPutPlayerPacket(client_index, id);
+
+			}
+			else
+			{
+				gclients[client_index].vl_lock.lock();
+				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+				{
+					gclients[client_index].view_list.erase(id);
+					gclients[client_index].vl_lock.unlock();
+					SendRemovePlayerPacket(client_index, id);
+				}
 
 				gclients[id].vl_lock.lock();
-				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+				if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
 				{
-					gclients[id].view_list.insert(client_index);
+					gclients[id].view_list.erase(client_index);
 					gclients[id].vl_lock.unlock();
+					SendRemovePlayerPacket(id, client_index);
 				}
-
-			}
-			SendPutPlayerPacket(id, client_index);
-			SendPutPlayerPacket(client_index, id);
-
-		}
-		else
-		{
-			gclients[client_index].vl_lock.lock();
-			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
-			{
-				gclients[client_index].view_list.erase(id);
-				gclients[client_index].vl_lock.unlock();
-				SendRemovePlayerPacket(client_index, id);
-			}
-
-			gclients[id].vl_lock.lock();
-			if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
-			{
-				gclients[id].view_list.erase(client_index);
-				gclients[id].vl_lock.unlock();
-				SendRemovePlayerPacket(id, client_index);
 			}
 		}
-	}
-#pragma endregion
-#else
-#pragma region[시야처리 unlock]
-	std::unordered_set<int> new_view_list;
+	#pragma endregion
+	#else
+	#pragma region[시야처리 unlock]
+		std::unordered_set<int> new_view_list;
 
-	for (int i = 0; i < MAX_USER; ++i)
-	{
-		if (i == client_index)continue;
-
-		if (gclients[i].bConnected)
+		for (int i = 0; i < MAX_USER; ++i)
 		{
-			new_view_list.insert(i);
-		}
-	}
+			if (i == client_index)continue;
 
-	for (auto& id : new_view_list)
-	{
-		if (IsNear(client_index, id))
-		{
-			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+			if (gclients[i].bConnected)
 			{
-				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+				new_view_list.insert(i);
+			}
+		}
+
+		for (auto& id : new_view_list)
+		{
+			if (IsNear(client_index, id))
+			{
+				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
 				{
-					gclients[id].view_list.insert(client_index);
+					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+					{
+						gclients[id].view_list.insert(client_index);
+					}
 				}
-			}
 
-			else											//이전에 보이지 않음
-			{
-				gclients[client_index].view_list.insert(id);
-
-				if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+				else											//이전에 보이지 않음
 				{
-					gclients[id].view_list.insert(client_index);
+					gclients[client_index].view_list.insert(id);
+
+					if (0 == gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+					{
+						gclients[id].view_list.insert(client_index);
+					}
+
+				}
+				SendPutPlayerPacket(id, client_index);
+				SendPutPlayerPacket(client_index, id);
+
+			}
+			else
+			{
+				if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
+				{
+					gclients[client_index].view_list.erase(id);
+					SendRemovePlayerPacket(client_index, id);
 				}
 
-			}
-			SendPutPlayerPacket(id, client_index);
-			SendPutPlayerPacket(client_index, id);
-
-		}
-		else
-		{
-			if (gclients[client_index].view_list.count(id))	//이전에 보이고있음
-			{
-				gclients[client_index].view_list.erase(id);
-				SendRemovePlayerPacket(client_index, id);
-			}
-
-			if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
-			{
-				gclients[id].view_list.erase(client_index);
-				SendRemovePlayerPacket(id, client_index);
+				if (gclients[id].view_list.count(client_index))//상대가 보이지 않고 있었음
+				{
+					gclients[id].view_list.erase(client_index);
+					SendRemovePlayerPacket(id, client_index);
+				}
 			}
 		}
-	}
-#pragma endregion
-#endif
+	#pragma endregion
+	#endif
 
 
 	SendPositionPacket(client_index, client_index);
@@ -463,6 +492,7 @@ void AcceptThread()
 
 		gclients[new_client_id].s = sClient;
 		gclients[new_client_id].bConnected = true;
+		gclients[new_client_id].bIsActive = true;
 		CreateIoCompletionPort(reinterpret_cast<HANDLE>(sClient), ghIOCP, new_client_id, 0);
 		gclients[new_client_id].recv_over.event_type = E_RECV;		//Recv니깐
 		gclients[new_client_id].recv_over.wsabuf.buf = reinterpret_cast<CHAR *>(gclients[new_client_id].recv_over.IOCP_buf);//WSA니깐 wsabuf
@@ -473,7 +503,7 @@ void AcceptThread()
 
 		SendPutPlayerPacket(new_client_id, new_client_id);
 
-		for (int i = 0; i < MAX_USER; ++i)
+		for (int i = 0; i < NPC_START; ++i)
 		{
 			if (true == gclients[i].bConnected)
 			{
@@ -481,10 +511,13 @@ void AcceptThread()
 				{
 					if (true == IsNear(new_client_id, i))
 					{
-						gclients[i].vl_lock.lock();
-						gclients[i].view_list.insert(new_client_id);
-						gclients[i].vl_lock.unlock();
-
+						#ifdef _USE_LOCK
+							gclients[i].vl_lock.lock();
+							gclients[i].view_list.insert(new_client_id);
+							gclients[i].vl_lock.unlock();
+						#else
+							gclients[i].view_list.insert(new_client_id);
+						#endif
 						SendPutPlayerPacket(i, new_client_id);
 						SendPutPlayerPacket(new_client_id, i);
 					}
@@ -676,7 +709,7 @@ void WorkerThread()
 
 //KYT '17.05.07
 /*
-NPC Server
+	NPC Server
 */
 void InitializeNPC()
 {
@@ -697,6 +730,100 @@ void InitializeNPC()
 
 }
 
+void Heart_Beat(const int& npc_id)
+{
+	int dir = rand() % 4;
+
+	switch (dir)
+	{
+	case DIR_EAST:
+		gclients[npc_id].x++;
+		if (gclients[npc_id].x >= BOARD_WIDTH) gclients[npc_id].x = BOARD_WIDTH - 1;
+		break;
+	case DIR_WEST:
+		gclients[npc_id].x--;
+		if (gclients[npc_id].x < 0) gclients[npc_id].x = 0;
+		break;
+	case DIR_NORTH:
+		gclients[npc_id].y++;
+		if (gclients[npc_id].y >= BOARD_HEIGHT) gclients[npc_id].y = BOARD_HEIGHT - 1;
+		break;
+	case DIR_SOUTH:
+		gclients[npc_id].y--;
+		if (gclients[npc_id].y < 0) gclients[npc_id].y = BOARD_HEIGHT - 1;
+		break;
+	}
+
+
+#ifdef _USE_LOCK
+	for (int player_id = 0; player_id < NPC_START; player_id++)
+	{
+		gclients[player_id].vl_lock.lock();
+		if (gclients[player_id].bConnected)
+		{
+			gclients[player_id].vl_lock.unlock();
+
+			if (IsNear(player_id, npc_id))
+			{
+				gclients[player_id].vl_lock.lock();
+				if (0 == gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+				{
+					gclients[player_id].view_list.insert(npc_id);
+					gclients[player_id].vl_lock.unlock();
+				}
+				SendPutPlayerPacket(player_id, npc_id);
+			}
+			else
+			{
+				gclients[player_id].vl_lock.lock();
+				if (gclients[player_id].view_list.empty())
+				{
+					gclients[player_id].vl_lock.unlock();
+					continue;
+				}
+
+				if (gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+				{
+					gclients[player_id].view_list.erase(npc_id);
+					gclients[player_id].vl_lock.unlock();
+
+					SendRemovePlayerPacket(player_id, npc_id);
+				}
+			}
+		}
+		else
+		{
+			gclients[player_id].vl_lock.unlock();
+		}
+	}
+#else
+	for (int player_id = 0; player_id < NPC_START; player_id++)
+	{
+		if (gclients[player_id].bConnected)
+		{
+			if (IsNear(player_id, npc_id))
+			{
+				if (0 == gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+				{
+					gclients[player_id].view_list.insert(npc_id);
+				}
+				SendPutPlayerPacket(player_id, npc_id);
+			}
+			else
+			{
+				if (gclients[player_id].view_list.empty())continue;
+
+				if (gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
+				{
+					gclients[player_id].view_list.erase(npc_id);
+					SendRemovePlayerPacket(player_id, npc_id);
+				}
+			}
+		}
+	}
+#endif
+}
+
 void NPC_Control_Thread()
 {
 	while (1)
@@ -707,100 +834,17 @@ void NPC_Control_Thread()
 		//std::cout << "\t time : " << std::chrono::duration_cast<std::chrono::microseconds>(du).count() << std::endl;
 		for (int npc_id = NPC_START; npc_id < NUM_OF_NPC; ++npc_id)
 		{
-			int dir = rand() % 4;
-
-			switch (dir)
-			{
-			case DIR_EAST:
-				gclients[npc_id].x++;
-				if (gclients[npc_id].x >= BOARD_WIDTH) gclients[npc_id].x = BOARD_WIDTH - 1;
-				break;
-			case DIR_WEST:
-				gclients[npc_id].x--;
-				if (gclients[npc_id].x < 0) gclients[npc_id].x = 0;
-				break;
-			case DIR_NORTH:
-				gclients[npc_id].y++;
-				if (gclients[npc_id].y >= BOARD_HEIGHT) gclients[npc_id].y = BOARD_HEIGHT - 1;
-				break;
-			case DIR_SOUTH:
-				gclients[npc_id].y--;
-				if (gclients[npc_id].y < 0) gclients[npc_id].y = BOARD_HEIGHT - 1;
-				break;
-			}
-
-
-#ifdef _USE_LOCK
-			for (int player_id = 0; player_id < NPC_START; player_id++)
-			{
-				gclients[player_id].vl_lock.lock();
-				if (gclients[player_id].bConnected)
-				{
-					gclients[player_id].vl_lock.unlock();
-
-					if (IsNear(player_id, npc_id))
-					{
-						gclients[player_id].vl_lock.lock();
-						if (0 == gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
-						{
-							gclients[player_id].view_list.insert(npc_id);
-							gclients[player_id].vl_lock.unlock();
-						}
-						SendPutPlayerPacket(player_id, npc_id);
-					}
-					else
-					{
-						gclients[player_id].vl_lock.lock();
-						if (gclients[player_id].view_list.empty())
-						{
-							gclients[player_id].vl_lock.unlock();
-							continue;
-						}
-
-						if (gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
-						{
-							gclients[player_id].view_list.erase(npc_id);
-							gclients[player_id].vl_lock.unlock();
-
-							SendRemovePlayerPacket(player_id, npc_id);
-						}
-					}
-				}
-				else
-				{
-					gclients[player_id].vl_lock.unlock();
-				}
-
-			}
-#else
-			for (int player_id = 0; player_id < NPC_START; player_id++)
-			{
-				if (gclients[player_id].bConnected)
-				{
-					if (IsNear(player_id, npc_id))
-					{
-						if (0 == gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
-						{
-							gclients[player_id].view_list.insert(npc_id);
-						}
-						SendPutPlayerPacket(player_id, npc_id);
-					}
-					else
-					{
-						if (gclients[player_id].view_list.empty())continue;
-
-						if (gclients[player_id].view_list.count(npc_id))	//이전에 보이고있음
-						{
-							gclients[player_id].view_list.erase(npc_id);
-							SendRemovePlayerPacket(player_id, npc_id);
-						}
-					}
-				}
-			}
-#endif
+			Heart_Beat(npc_id);
+			WSAOVERLAPPED_EX *over_ex = new WSAOVERLAPPED_EX();	//재활용하면 중복되서 실행 될 수 있다.
+			over_ex->event_type = E_DOAI;
+													   //object id
+			PostQueuedCompletionStatus(ghIOCP,	1,		  npc_id,	&over_ex->over);
+										   //event_id				 // 
 		}
 		//auto du = std::chrono::high_resolution_clock::now() - start_time;
 		//Sleep(1000U - std::chrono::duration_cast<std::chrono::milliseconds>(du).count());
+								
+
 	}
 }
 
@@ -809,15 +853,18 @@ void TimerThread()
 	while (1)
 	{
 		gTimer.Tick(60);
-
-
-
+		//timer_time  t = timer_queue.top();
+		//if (t->exec_time > now())break;
+		//time_queue.pop();
+		//PostQueuedCompletionStatus(ghIOCP, 1, timer_item->id, &over_ex->over);
+			
 	}
-
 }
 
 int main()
 {
+	CMiniDump::Start();
+	
 	InitializeServer();
 
 	InitializeNPC();
@@ -848,6 +895,8 @@ int main()
 		}
 	}
 	vWorker_Thread.clear();
+
+	CMiniDump::End();
 }
 
 

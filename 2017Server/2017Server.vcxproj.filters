@@ -16,6 +16,9 @@
     <Filter Include="Timer">
       <UniqueIdentifier>{7922f8ed-8213-49ac-ae1e-dd75cda56f34}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dump">
+      <UniqueIdentifier>{017e6144-671c-4618-a9f0-3b88eceb965e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="protocol.h">
@@ -39,6 +42,9 @@
     <ClInclude Include="ServerTimer.h">
       <Filter>Timer</Filter>
     </ClInclude>
+    <ClInclude Include="MiniDump.h">
+      <Filter>Dump</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="server_main.cpp">
@@ -46,6 +52,15 @@
     </ClCompile>
     <ClCompile Include="ServerTimer.cpp">
       <Filter>Timer</Filter>
+    </ClCompile>
+    <ClCompile Include="2016_NPC.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="2016_NPC_02.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="교수님_server_main.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
