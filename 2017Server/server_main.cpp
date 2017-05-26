@@ -70,7 +70,19 @@ public:
 	std::unordered_set<int> view_list;
 	std::mutex vl_lock;
 
-	void HeartBeat() {}
+};
+
+struct TimerItem
+{
+	int id;
+	unsigned int exec_time;
+	EVENTTYPE t_event;
+};
+
+class comparision
+{
+public: 
+	constexpr bool operator() (const TimerItem& a, const TimerItem& b) const { return (a.exec_time > b.exec_time); }
 };
 
 ClientInfo gclients[MAX_USER];

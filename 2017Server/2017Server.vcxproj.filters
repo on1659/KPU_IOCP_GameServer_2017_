@@ -19,6 +19,9 @@
     <Filter Include="Dump">
       <UniqueIdentifier>{017e6144-671c-4618-a9f0-3b88eceb965e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DB">
+      <UniqueIdentifier>{50f11164-a759-4114-bdda-093916d4eff6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="protocol.h">
@@ -61,6 +64,9 @@
     </ClCompile>
     <ClCompile Include="교수님_server_main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="obdc.cpp">
+      <Filter>DB</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

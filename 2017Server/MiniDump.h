@@ -61,7 +61,7 @@ LONG __stdcall UnHandledExceptionFilter(struct _EXCEPTION_POINTERS *exceptionInf
 			//directory_path += TEXT("-");
 			//directory_path += SystemTime.wSecond;
 			//언제 죽었는지 확인
-			_sntprintf_s(DumpPath, MAX_PATH, _T("%d-%d-%d %d_%d_%d.dmp"),
+			_sntprintf_s(DumpPath, MAX_PATH, _T("../Dump/%d-%d-%d %d_%d_%d.dmp"),
 				SystemTime.wYear,
 				SystemTime.wMonth,
 				SystemTime.wDay,
