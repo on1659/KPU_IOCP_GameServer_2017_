@@ -22,6 +22,9 @@
     <Filter Include="DB">
       <UniqueIdentifier>{50f11164-a759-4114-bdda-093916d4eff6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Lua">
+      <UniqueIdentifier>{0c99463e-bfab-48b9-93fc-c87b083d5345}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="protocol.h">
@@ -47,6 +50,9 @@
     </ClInclude>
     <ClInclude Include="MiniDump.h">
       <Filter>Dump</Filter>
+    </ClInclude>
+    <ClInclude Include="myLua.h">
+      <Filter>Lua</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

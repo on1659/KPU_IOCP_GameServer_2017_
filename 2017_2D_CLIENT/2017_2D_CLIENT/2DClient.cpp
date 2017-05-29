@@ -288,76 +288,76 @@ int WINAPI WinMain(	HINSTANCE hinstance,
 					LPSTR lpcmdline,
 					int ncmdshow)
 {
-// this is the winmain function
+	// this is the winmain function
 
-WNDCLASS winclass;	// this will hold the class we create
-HWND	 hwnd;		// generic window handle
-MSG		 msg;		// generic message
+	WNDCLASS winclass;	// this will hold the class we create
+	HWND	 hwnd;		// generic window handle
+	MSG		 msg;		// generic message
 
 
-// first fill in the window class stucture
-winclass.style			= CS_DBLCLKS | CS_OWNDC | 
-                          CS_HREDRAW | CS_VREDRAW;
-winclass.lpfnWndProc	= WindowProc;
-winclass.cbClsExtra		= 0;
-winclass.cbWndExtra		= 0;
-winclass.hInstance		= hinstance;
-winclass.hIcon			= LoadIcon(NULL, IDI_APPLICATION);
-winclass.hCursor		= LoadCursor(NULL, IDC_ARROW);
-winclass.hbrBackground	= (HBRUSH)GetStockObject(BLACK_BRUSH);
-winclass.lpszMenuName	= NULL; 
-winclass.lpszClassName	= WINDOW_CLASS_NAME;
+	// first fill in the window class stucture
+	winclass.style			= CS_DBLCLKS | CS_OWNDC | 
+								CS_HREDRAW | CS_VREDRAW;
+	winclass.lpfnWndProc	= WindowProc;
+	winclass.cbClsExtra		= 0;
+	winclass.cbWndExtra		= 0;
+	winclass.hInstance		= hinstance;
+	winclass.hIcon			= LoadIcon(NULL, IDI_APPLICATION);
+	winclass.hCursor		= LoadCursor(NULL, IDC_ARROW);
+	winclass.hbrBackground	= (HBRUSH)GetStockObject(BLACK_BRUSH);
+	winclass.lpszMenuName	= NULL; 
+	winclass.lpszClassName	= WINDOW_CLASS_NAME;
 
-// register the window class
-if (!RegisterClass(&winclass))
+	// register the window class
+	if (!RegisterClass(&winclass))
+		return(0);
+
+	// create the window, note the use of WS_POPUP
+	if (!(hwnd = CreateWindow(WINDOW_CLASS_NAME, // class
+								L"Chess Client",	 // title
+								WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+					 			0,0,	   // x,y
+								WINDOW_WIDTH,  // width
+								WINDOW_HEIGHT, // height
+								NULL,	   // handle to parent 
+								NULL,	   // handle to menu
+								hinstance,// instance
+								NULL)))	// creation parms
 	return(0);
 
-// create the window, note the use of WS_POPUP
-if (!(hwnd = CreateWindow(WINDOW_CLASS_NAME, // class
-						  L"Chess Client",	 // title
-						  WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-					 	  0,0,	   // x,y
-						  WINDOW_WIDTH,  // width
-                          WINDOW_HEIGHT, // height
-						  NULL,	   // handle to parent 
-						  NULL,	   // handle to menu
-						  hinstance,// instance
-						  NULL)))	// creation parms
-return(0);
+	// save the window handle and instance in a global
+	main_window_handle = hwnd;
+	main_instance      = hinstance;
 
-// save the window handle and instance in a global
-main_window_handle = hwnd;
-main_instance      = hinstance;
+	// perform all game console specific initialization
+	Game_Init();
 
-// perform all game console specific initialization
-Game_Init();
-
-// enter main event loop
-while(1)
-	{
-	if (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
-		{ 
-		// test if this is a quit
-        if (msg.message == WM_QUIT)
-           break;
+	// enter main event loop
+	while(1)
+		{
+		if (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
+			{ 
+			// test if this is a quit
+			if (msg.message == WM_QUIT)
+				break;
 	
-		// translate any accelerator keys
-		TranslateMessage(&msg);
+			// translate any accelerator keys
+			TranslateMessage(&msg);
 
-		// send the message to the window proc
-		DispatchMessage(&msg);
-		} // end if
+			// send the message to the window proc
+			DispatchMessage(&msg);
+			} // end if
     
-    // main game processing goes here
-    Game_Main();
+		// main game processing goes here
+		Game_Main();
 
-	} // end while
+		} // end while
 
-// shutdown game and release all resources
-Game_Shutdown();
+	// shutdown game and release all resources
+	Game_Shutdown();
 
-// return to Windows like this
-return(msg.wParam);
+	// return to Windows like this
+	return(msg.wParam);
 
 } // end WinMain
 
@@ -367,35 +367,35 @@ return(msg.wParam);
 
 int Game_Init(void *parms)
 {
-// this function is where you do all the initialization 
-// for your game
+	// this function is where you do all the initialization 
+	// for your game
 
-// set up screen dimensions
-screen_width = WINDOW_WIDTH;
-screen_height = WINDOW_HEIGHT;
-screen_bpp   = 32;
+	// set up screen dimensions
+	screen_width = WINDOW_WIDTH;
+	screen_height = WINDOW_HEIGHT;
+	screen_bpp   = 32;
 
-// initialize directdraw
-DD_Init(screen_width, screen_height, screen_bpp);
+	// initialize directdraw
+	DD_Init(screen_width, screen_height, screen_bpp);
 
 
-// create and load the reactor bitmap image
-Create_Bitmap32(&reactor, 0,0, 531, 532);
-Create_Bitmap32(&black_tile, 0, 0, 531, 532);
-Create_Bitmap32(&white_tile, 0, 0, 531, 532);
-Load_Image_Bitmap32(&reactor,L"CHESSMAP.BMP",0,0,BITMAP_EXTRACT_MODE_ABS);
-Load_Image_Bitmap32(&black_tile,L"CHESSMAP.BMP",0,0,BITMAP_EXTRACT_MODE_ABS);
-black_tile.x = 69;
-black_tile.y = 5;
-black_tile.height = TILE_WIDTH;
-black_tile.width = TILE_WIDTH;
-Load_Image_Bitmap32(&white_tile,L"CHESSMAP.BMP",0,0,BITMAP_EXTRACT_MODE_ABS);
-white_tile.x = 5;
-white_tile.y = 5;
-white_tile.height = TILE_WIDTH;
-white_tile.width = TILE_WIDTH;
+	// create and load the reactor bitmap image
+	Create_Bitmap32(&reactor, 0,0, 531, 532);
+	Create_Bitmap32(&black_tile, 0, 0, 531, 532);
+	Create_Bitmap32(&white_tile, 0, 0, 531, 532);
+	Load_Image_Bitmap32(&reactor,L"CHESSMAP.BMP",0,0,BITMAP_EXTRACT_MODE_ABS);
+	Load_Image_Bitmap32(&black_tile,L"CHESSMAP.BMP",0,0,BITMAP_EXTRACT_MODE_ABS);
+	black_tile.x = 69;
+	black_tile.y = 5;
+	black_tile.height = TILE_WIDTH;
+	black_tile.width = TILE_WIDTH;
+	Load_Image_Bitmap32(&white_tile,L"CHESSMAP.BMP",0,0,BITMAP_EXTRACT_MODE_ABS);
+	white_tile.x = 5;
+	white_tile.y = 5;
+	white_tile.height = TILE_WIDTH;
+	white_tile.width = TILE_WIDTH;
 
-// now let's load in all the frames for the skelaton!!!
+	// now let's load in all the frames for the skelaton!!!
 
 	Load_Texture(L"CHESS2.PNG", UNIT_TEXTURE, 384, 64);
 
@@ -437,13 +437,13 @@ white_tile.width = TILE_WIDTH;
 
 
 
-// set clipping rectangle to screen extents so mouse cursor
-// doens't mess up at edges
-//RECT screen_rect = {0,0,screen_width,screen_height};
-//lpddclipper = DD_Attach_Clipper(lpddsback,1,&screen_rect);
+	// set clipping rectangle to screen extents so mouse cursor
+	// doens't mess up at edges
+	//RECT screen_rect = {0,0,screen_width,screen_height};
+	//lpddclipper = DD_Attach_Clipper(lpddsback,1,&screen_rect);
 
-// hide the mouse
-//ShowCursor(FALSE);
+	// hide the mouse
+	//ShowCursor(FALSE);
 
 
 	WSADATA	wsadata;
@@ -467,8 +467,8 @@ white_tile.width = TILE_WIDTH;
 	recv_wsabuf.len = BUF_SIZE;
 
 
-// return success
-return(1);
+	// return success
+	return(1);
 
 } // end Game_Init
 

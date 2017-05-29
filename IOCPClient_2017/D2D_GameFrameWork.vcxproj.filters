@@ -1,0 +1,262 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="소스 파일">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="헤더 파일">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="리소스 파일">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="0.Define">
+      <UniqueIdentifier>{6b80024f-d7fd-4244-b25f-80f327f84f20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client">
+      <UniqueIdentifier>{31dd8099-c63b-4e27-9cfd-2c9957cb79db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\98.Util">
+      <UniqueIdentifier>{b9689108-e6c7-433b-9f59-eb5159752e7b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\07.Draw">
+      <UniqueIdentifier>{f515e271-d950-4c41-8ef2-fb8a43971d06}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\06.InputManager">
+      <UniqueIdentifier>{5a772cb9-252d-43b6-a16c-15b0e5175e52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\05.Timer">
+      <UniqueIdentifier>{ed47e681-7bca-46c3-9184-3e6be2431081}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\04.Object">
+      <UniqueIdentifier>{1631c15b-a521-4c74-8041-26581a1e05a3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\04.Object\GameObject">
+      <UniqueIdentifier>{9089290f-c2ca-47f5-a67e-8b4287db6d0e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\04.Object\MapObject">
+      <UniqueIdentifier>{046a5116-11ec-43c1-875e-1c329ba0d46a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\04.Object\Cemera">
+      <UniqueIdentifier>{d8fe9e24-bda4-4e67-9764-e1d9f043da80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\03.Scene">
+      <UniqueIdentifier>{02135dd4-ec2e-4d49-9f6a-d4ef0d1a2814}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\03.Scene\Scene">
+      <UniqueIdentifier>{0d3d3978-b53b-4052-b0bd-9087433b0325}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\02.FrameWork">
+      <UniqueIdentifier>{2113b0c5-ff05-4766-82e7-88c088ae2f54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\01.Abstract Class">
+      <UniqueIdentifier>{374cc1b4-cc96-4f04-a174-9718b1d89b41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\08.RenderManager">
+      <UniqueIdentifier>{aba28f38-e1cd-461e-ad2a-9fbe6c2b9d2a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\08.RenderManager\Graphic">
+      <UniqueIdentifier>{25ba57ff-9f0e-4ec9-a6eb-034940b76930}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\08.RenderManager\Sprite">
+      <UniqueIdentifier>{5631c227-d43c-4361-9376-73ef898177e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\09. DropManager">
+      <UniqueIdentifier>{3da2bf9b-10e0-45d1-813a-e09bd9993789}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\09.Componnet">
+      <UniqueIdentifier>{f2c6d6bd-aab0-4004-bcb8-52dd3f5a8b85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\10.Script">
+      <UniqueIdentifier>{79879e39-13e8-4668-9026-0697da5f2b26}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\10.Script\Move">
+      <UniqueIdentifier>{1b2c7373-a2ce-44fd-ae7c-0dfc0e79cfe3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\10.Script\Camera">
+      <UniqueIdentifier>{e0513bd7-e772-40bf-a0c1-bd289ec2ec68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="2.NetworkServer">
+      <UniqueIdentifier>{987dc701-2158-4415-96b8-f5e44249f866}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="2.NetworkServer\MainServer">
+      <UniqueIdentifier>{0b18627f-0a19-4088-b951-fc46c1bf9845}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="2.NetworkServer\protocol">
+      <UniqueIdentifier>{217f6a74-a701-4c5b-91ed-fd656516fdc1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="1.2D_Client\04.Object\Player">
+      <UniqueIdentifier>{5bf4a9a5-f898-4193-8431-aaff2551d5bc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="targetver.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="SingleTon.h">
+      <Filter>1.2D_Client\01.Abstract Class</Filter>
+    </ClInclude>
+    <ClInclude Include="Object_D2D.h">
+      <Filter>1.2D_Client\04.Object</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDefine.h">
+      <Filter>0.Define</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEnum.h">
+      <Filter>0.Define</Filter>
+    </ClInclude>
+    <ClInclude Include="MyStruct.h">
+      <Filter>0.Define</Filter>
+    </ClInclude>
+    <ClInclude Include="GameFrameWork_D2D.h">
+      <Filter>1.2D_Client\02.FrameWork</Filter>
+    </ClInclude>
+    <ClInclude Include="Timer.h">
+      <Filter>1.2D_Client\05.Timer</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>0.Define</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>1.2D_Client\98.Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneState.h">
+      <Filter>1.2D_Client\01.Abstract Class</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneMain.h">
+      <Filter>1.2D_Client\03.Scene\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="InputManager.h">
+      <Filter>1.2D_Client\06.InputManager</Filter>
+    </ClInclude>
+    <ClInclude Include="Draw.h">
+      <Filter>1.2D_Client\07.Draw</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadD2DBitmap.h">
+      <Filter>1.2D_Client\08.RenderManager</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicObject_2D.h">
+      <Filter>1.2D_Client\08.RenderManager\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="SpriteObject_2D.h">
+      <Filter>1.2D_Client\08.RenderManager\Sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderManager_2D.h">
+      <Filter>1.2D_Client\08.RenderManager</Filter>
+    </ClInclude>
+    <ClInclude Include="DrawHelper.h">
+      <Filter>1.2D_Client\98.Util</Filter>
+    </ClInclude>
+    <ClInclude Include="DropManager.h">
+      <Filter>1.2D_Client\09. DropManager</Filter>
+    </ClInclude>
+    <ClInclude Include="Component.h">
+      <Filter>1.2D_Client\09.Componnet</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleScript.h">
+      <Filter>1.2D_Client\10.Script</Filter>
+    </ClInclude>
+    <ClInclude Include="InputScript.h">
+      <Filter>1.2D_Client\10.Script\Move</Filter>
+    </ClInclude>
+    <ClInclude Include="MapObject.h">
+      <Filter>1.2D_Client\04.Object\MapObject</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera_2D.h">
+      <Filter>1.2D_Client\04.Object\Cemera</Filter>
+    </ClInclude>
+    <ClInclude Include="GameObject_2D.h">
+      <Filter>1.2D_Client\04.Object\GameObject</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniDump.h">
+      <Filter>1.2D_Client\98.Util</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraInputScript.h">
+      <Filter>1.2D_Client\10.Script\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="D2D_GameFrameWork.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="..\IOCPServer_2017\protocol.h">
+      <Filter>2.NetworkServer\protocol</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPClient.h">
+      <Filter>2.NetworkServer\MainServer</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>1.2D_Client\04.Object\Player</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Object_D2D.cpp">
+      <Filter>1.2D_Client\04.Object</Filter>
+    </ClCompile>
+    <ClCompile Include="D2D_GameFrameWork.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="GameFrameWork_D2D.cpp">
+      <Filter>1.2D_Client\02.FrameWork</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer.cpp">
+      <Filter>1.2D_Client\05.Timer</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneMain.cpp">
+      <Filter>1.2D_Client\03.Scene\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="InputManager.cpp">
+      <Filter>1.2D_Client\06.InputManager</Filter>
+    </ClCompile>
+    <ClCompile Include="Draw.cpp">
+      <Filter>1.2D_Client\07.Draw</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicObject_2D.cpp">
+      <Filter>1.2D_Client\08.RenderManager\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="SpriteObject_2D.cpp">
+      <Filter>1.2D_Client\08.RenderManager\Sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderManager_2D.cpp">
+      <Filter>1.2D_Client\08.RenderManager</Filter>
+    </ClCompile>
+    <ClCompile Include="MapObject.cpp">
+      <Filter>1.2D_Client\04.Object\MapObject</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera_2D.cpp">
+      <Filter>1.2D_Client\04.Object\Cemera</Filter>
+    </ClCompile>
+    <ClCompile Include="GameObject_2D.cpp">
+      <Filter>1.2D_Client\04.Object\GameObject</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPClient.cpp">
+      <Filter>2.NetworkServer\MainServer</Filter>
+    </ClCompile>
+    <ClCompile Include="Player.cpp">
+      <Filter>1.2D_Client\04.Object\Player</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="D2D_GameFrameWork.rc">
+      <Filter>리소스 파일</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="small.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="D2D_GameFrameWork.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

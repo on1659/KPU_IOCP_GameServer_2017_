@@ -15,7 +15,7 @@
 
 
 //XXXXX										//NPC
-#define NPC_START  1000	
+#define NPC_START	  1000	
 #define NUM_OF_NPC  100000
 #define MAX_STR_SIZE  100
 

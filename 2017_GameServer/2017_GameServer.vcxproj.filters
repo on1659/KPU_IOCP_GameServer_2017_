@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="소스 파일">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="헤더 파일">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="리소스 파일">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Timer">
+      <UniqueIdentifier>{3545e983-a624-47dd-9ff1-f7bf63253021}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ServerMain">
+      <UniqueIdentifier>{561bf875-6f44-43c1-8cd5-682ccb87f726}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Util">
+      <UniqueIdentifier>{8219a822-2939-485a-ac69-b176f7f10598}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer\ServerTimer.cpp">
+      <Filter>Timer</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPServer\IOCPServer.cpp">
+      <Filter>ServerMain</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="header.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Timer\ServerTimer.h">
+      <Filter>Timer</Filter>
+    </ClInclude>
+    <ClInclude Include="protocol.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\MiniDump.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPServer\IOCPServer.h">
+      <Filter>ServerMain</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

@@ -58,7 +58,8 @@ public:
 	int x, y;
 	//std::atomic<bool> bConnected;
 	volatile bool bConnected;
-	volatile bool bIsActive;	//살아있는지 죽어있는지
+	volatile bool bIsAlive;		//NPC 생사여부
+	volatile bool bIsActive;	//NPC 활동여부
 
 	SOCKET s;
 	WSAOVERLAPPED_EX recv_over;	//only use worker thread
@@ -85,7 +86,7 @@ public:
 	constexpr bool operator() (const TimerItem& a, const TimerItem& b) const { return (a.exec_time > b.exec_time); }
 };
 
-ClientInfo gclients[MAX_USER];
+ClientInfo gclients[NUM_OF_NPC];
 
 constexpr bool IsPlayer(const int& i) 
 {
@@ -95,7 +96,7 @@ constexpr bool IsPlayer(const int& i)
 void client_init(const int& i)
 {
 	gclients[i].bConnected = false;
-	gclients[i].bIsActive = false;
+	gclients[i].bIsAlive = false;
 }
 
 
@@ -324,7 +325,7 @@ void ProcessPacket(const int& client_index, unsigned char *packet)
 			if (i == client_index)continue;
 			if (!IsNear(client_index, i)) continue;
 
-			if (gclients[i].bIsActive)
+			if (gclients[i].bIsAlive)
 			{
 				new_view_list.insert(i);
 			}
@@ -504,7 +505,7 @@ void AcceptThread()
 
 		gclients[new_client_id].s = sClient;
 		gclients[new_client_id].bConnected = true;
-		gclients[new_client_id].bIsActive = true;
+		gclients[new_client_id].bIsAlive = true;
 		CreateIoCompletionPort(reinterpret_cast<HANDLE>(sClient), ghIOCP, new_client_id, 0);
 		gclients[new_client_id].recv_over.event_type = E_RECV;		//Recv니깐
 		gclients[new_client_id].recv_over.wsabuf.buf = reinterpret_cast<CHAR *>(gclients[new_client_id].recv_over.IOCP_buf);//WSA니깐 wsabuf
@@ -566,7 +567,7 @@ void AcceptThread()
 
 //'17.04.07 KYT
 /*
-Disconnect Client & socket init
+	Disconnect Client & socket init
 */
 void DisconnectClient(const int& client_index)
 {
@@ -725,21 +726,15 @@ void WorkerThread()
 */
 void InitializeNPC()
 {
-	// x,y 두개만 초기화하면 됩니다.
 	for (int i = NPC_START; i < NUM_OF_NPC; ++i)
 	{
-
 		gclients[i].x = rand() % BOARD_WIDTH;
 		gclients[i].y = rand() % BOARD_HEIGHT;
+		gclients[i].bConnected = false;
+		gclients[i].bIsAlive = true;
+		gclients[i].bIsActive = false;
 
-		if (i < NPC_START + 10)
-		{
-			gclients[i].x = rand() % 5;//BOARD_WIDTH;
-			gclients[i].y = rand() % 5;//BOARD_HEIGHT;
-		}
-		gclients[i].bConnected = false;		//참조하면 안되지만 안전을 위해서
 	}
-
 }
 
 void Heart_Beat(const int& npc_id)
@@ -873,6 +868,8 @@ void TimerThread()
 	}
 }
 
+void WakeUpNPC(const int& id);
+
 int main()
 {
 	CMiniDump::Start();
@@ -909,6 +906,12 @@ int main()
 	vWorker_Thread.clear();
 
 	CMiniDump::End();
+}
+
+void WakeUpNPC(const int& id)
+{
+	if (true == gclients[id].bIsActive)return;
+	Heart_Beat(id);
 }
 
 

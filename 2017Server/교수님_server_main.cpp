@@ -87,7 +87,9 @@ constexpr bool IsNear(const int& from,const int& to)
 		+ (gclients[from].y - gclients[to].y)
 		* (gclients[from].y - gclients[to].y));
 }
+
 constexpr bool isNPC(const int& id) { return id >= NPC_START ? true : false; }
+
 void WakeUpNPC(const int& id);
 
 void InitializeNPC()
